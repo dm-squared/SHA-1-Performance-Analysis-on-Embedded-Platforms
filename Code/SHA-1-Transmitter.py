@@ -13,13 +13,14 @@
 
 # General python libraries
 import sys
+import re
 
 # Metric calculating libraries
 import platform
 import os
 import datetime
 import psutil
-from resource import *
+#from resource import *
 
 # Hashing library
 import hashlib
@@ -151,27 +152,38 @@ def write_txt_file(type="results", buffer=[None]) -> None:
 #                               #
 #################################
 # Create the client socket and transfer data using utf-8 encoding
-def transfer_data_to_receiver():
-    client_ip = socket.gethostbyname(socket.gethostname())
+def transfer_data_to_receiver(server_ip):
     client_port = 64321
     RECV_BUFFER = 1024 
     
     # Open TCP socket to connect to receiver
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as client_socket:
         # Connect to TCP welcome port of server
-        client_socket.connect((client_ip, client_port))
+        print(f"Connecting to server at {server_ip}:{client_port} ...")
+        client_socket.connect((server_ip, client_port))
         
-        # Try and send hashes.txt file to server, then receive server ACK
+        # Set timeout to 10 seconds
+        client_socket.settimeout(10.0)
+        
+        # Try and send hashes.txt file to server
+        print("Connected, trying to send hashes.txt...")
         with open(hash_txt_file_path, "rb") as file:
-            client_socket.sendfile(file, 0)
+            data = file.read()
             file.close()
+        client_socket.sendall(data)
+        
+        # Wait for an ACK from receiver for the hashes.txt file
         server_ack = client_socket.recv(RECV_BUFFER)
         print(str(server_ack))
     
         # Try and send original.txt file to server, then receive server ACK
+        print("Now sending send.txt...")
         with open(send_txt_file_path, "rb") as file:
-            client_socket.sendfile(file, 0)
+            data = file.read()
             file.close()
+        client_socket.sendall(data)
+        
+        # Wait for an ACK from receiver for the send.txt file
         server_ack = client_socket.recv(RECV_BUFFER)
         print(str(server_ack))
         
@@ -186,16 +198,16 @@ def transfer_data_to_receiver():
 #                               #
 #################################
 def main():
+    # Start the elapsed time timer
+    elapsed_time_start = datetime.datetime.now()
+    
     # Get name of embedded device user is running on
     print("Please enter which platform you are running this on:")
     print("\t(1) Raspberry Pi 3B+")
     print("\t(2) Raspberry Pi 4B")
     print("\t(3) Jetson Nano 4GB")
     print("device: ", end="")
-    device_name = int(input())
-    
-    # Start the elapsed time timer
-    elapsed_time_start = datetime.datetime.now()
+    device_name = int(input())   
     
     # Define which device will be used
     if(device_name == 1):
@@ -206,6 +218,14 @@ def main():
         hw_name = "Jetson Nano 4GB"
     else:
         raise Exception("You need to enter either 1, 2, or 3... run the program again")
+        sys.exit(0)
+        
+    # Get IP information for this device
+    print("\nDevice IP = ", end="")
+    server_ip = input()
+    reg_ex = r"^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$"
+    if not re.match(reg_ex, server_ip):
+        raise Exception("Illegal IP address... please retry")
         sys.exit(0)
     
     # Separate initial input in console
@@ -267,7 +287,7 @@ def main():
     write_txt_file(type="send", buffer=ascii_chunk_list)
     
     # Send the data over the network to the receiver
-    #transfer_data_to_receiver()
+    transfer_data_to_receiver(server_ip)
 
     
     # End execution time tracking
@@ -288,22 +308,22 @@ def main():
     elapsed_time_sec = round(int(h)*3600 + int(m)*60 + float(s), 8)
     
     # Get average CPU usage over last 1,5,15 minutes
-    load_1min, load_5min, load_15min = os.getloadavg()
-    cpu_usage_1min = round((load_1min / os.cpu_count()) * 100, 3)
-    cpu_usage_5min = round((load_5min / os.cpu_count()) * 100, 3)
-    cpu_usage_15min = round((load_15min / os.cpu_count()) * 100, 3)
+    # load_1min, load_5min, load_15min = os.getloadavg()
+    # cpu_usage_1min = round((load_1min / os.cpu_count()) * 100, 3)
+    # cpu_usage_5min = round((load_5min / os.cpu_count()) * 100, 3)
+    # cpu_usage_15min = round((load_15min / os.cpu_count()) * 100, 3)
     
     # Get RAM usage from program based on system call
-    max_ram_usage = getrusage(RUSAGE_SELF).ru_maxrss
+    # max_ram_usage = getrusage(RUSAGE_SELF).ru_maxrss
     
     # Write all information to the results.txt file
     push_text("Execution time = " + str(execution_time_sec) + " seconds")
     push_text("Elapsed time = " + str(elapsed_time_sec) + " seconds")
-    push_text("Max RAM usage = " + str(max_ram_usage) + "KB")
-    push_text("Average CPU usages (%):")
-    push_text("\t1 minute after execution = " + str(cpu_usage_1min) + "%")
-    push_text("\t5 minute after execution = " + str(cpu_usage_5min) + "%")
-    push_text("\t15 minute after execution = " + str(cpu_usage_15min) + "%")       
+    # push_text("Max RAM usage = " + str(max_ram_usage) + "KB")
+    # push_text("Average CPU usages (%):")
+    # push_text("\t1 minute after execution = " + str(cpu_usage_1min) + "%")
+    # push_text("\t5 minute after execution = " + str(cpu_usage_5min) + "%")
+    # push_text("\t15 minute after execution = " + str(cpu_usage_15min) + "%")       
     
     # Ask user for input for max and average values from USB power meter
     print("\n\nPlease enter the HIGHEST power draw during process (Watts):  ", end="")
