@@ -30,8 +30,8 @@ We will create a python script that will measure the elapsed time, execution tim
 - [x] Start development of SHA-1 algorithm for receiver
 - [x] Complete development of SHA-1 algorithm for receiver
 - [x] Test version 1 of SHA-1 algorithm for receiver
-- [ ] Connect transmitter and receiver over network and test whole system
-- [ ] Gather data required for comparison
+- [x] Connect transmitter and receiver over network and test whole system
+- [x] Gather data required for comparison
 - [ ] Present all deliverables
 - [ ] Finalize project
 
